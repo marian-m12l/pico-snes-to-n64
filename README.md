@@ -1,8 +1,8 @@
-# TODO Usage + N64 wiring
+# SNES to N64 controller adapter
 
-This program continuously polls a SNES controller (every ~210 us), and prints its status about 60 times per seconds.
+Emulate N64 controller with a SNES controller. I made this to play with sodium64 emulator.
 
-It uses PIO and DMA so the CPU is free to work on other tasks, and can directly read the controller's current status in RAM.
+# Wiring
 
 Given the pinout:
 ```
@@ -11,7 +11,7 @@ Given the pinout:
   -----------------        3: Latch
 ```
 
-The controller is expected to be wired as follows:
+The SNES controller is expected to be wired as follows:
 
 ```
  SNES         Pico
@@ -23,8 +23,12 @@ The controller is expected to be wired as follows:
  7 Ground     GND
 ```
 
+The N64 controller data pin is expected to be wired to GP16.
+
 
 ## Build instructions
+
+Be careful to clone this repository with its submodules.
 
 ```
 mkdir build
