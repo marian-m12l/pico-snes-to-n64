@@ -1,10 +1,15 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
+#include <pico/multicore.h>
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
 #include "hardware/dma.h"
 #include "snes.pio.h"
 
+#include "N64Console.hpp"
+#include "n64_definitions.h"
+
+#define SODIUM64_MAPPING
  
 #define LATCH_PIN 13
 #define CLOCK_PIN 14
@@ -23,17 +28,78 @@
 #define BTN_L 5
 #define BTN_R 4
 
-uint16_t buttons;
+#define JOYBUS_PIN 16
+n64_report_t n64_report = default_n64_report;
+
+uint16_t buttons = 0xffff;
 
 bool get_button(int btn) {
     return (buttons >> btn) & 0x1;
 }
 
+void core1_entry() {
+    printf("[core1] Initializing joybus on core 1\n");
+    N64Console *console = new N64Console(JOYBUS_PIN, pio1);
+    // Handle poll commands
+    printf("[core1] Entering loop\n");
+    while(true) {
+        //printf("[core1] Waiting for POLL command from console...\n");
+        console->WaitForPoll();
+        //printf("[core1] sending report\n");
+        // TODO convert current snes status to n64 report??
+
+        // Update N64 controller report
+#ifdef SODIUM64_MAPPING
+        n64_report.dpad_right = get_button(BTN_RIGHT) == 0;
+        n64_report.dpad_left = get_button(BTN_LEFT) == 0;
+        n64_report.dpad_down = get_button(BTN_DOWN) == 0;
+        n64_report.dpad_up = get_button(BTN_UP) == 0;
+        n64_report.start = 0;
+        n64_report.z = 0;
+        n64_report.b = get_button(BTN_SELECT) == 0;
+        n64_report.a = get_button(BTN_START) == 0;
+        n64_report.c_right = get_button(BTN_A) == 0;
+        n64_report.c_left = get_button(BTN_Y) == 0;
+        n64_report.c_down = get_button(BTN_B) == 0;
+        n64_report.c_up = get_button(BTN_X) == 0;
+        n64_report.r = get_button(BTN_R) == 0;
+        n64_report.l = get_button(BTN_L) == 0;
+        n64_report.stick_x = 0;
+        n64_report.stick_y = 0;
+#else
+        n64_report.dpad_right = get_button(BTN_RIGHT) == 0;
+        n64_report.dpad_left = get_button(BTN_LEFT) == 0;
+        n64_report.dpad_down = get_button(BTN_DOWN) == 0;
+        n64_report.dpad_up = get_button(BTN_UP) == 0;
+        n64_report.start = get_button(BTN_START) == 0;
+        n64_report.z = 0;
+        n64_report.b = get_button(BTN_B) == 0;
+        n64_report.a = get_button(BTN_A) == 0;
+        n64_report.c_right = 0;
+        n64_report.c_left = 0;
+        n64_report.c_down = 0;
+        n64_report.c_up = 0;
+        n64_report.r = get_button(BTN_R) == 0;
+        n64_report.l = get_button(BTN_L) == 0;
+        n64_report.stick_x = 0;
+        n64_report.stick_y = 0;
+#endif
+
+        console->SendReport(&n64_report);
+    }
+}
+
 int main(void) 
 {
+    // TODO 130MHz for joybus pio ?!! --> fix clkdiv
+    set_sys_clock_khz(130'000, true);
+
     stdio_init_all();
 
-    printf("Pico SNES joypad\n");
+    printf("Pico SNES-to-N64 joypad\n");
+
+    printf("[core0] Spawn joybus process on core 1\n");
+    multicore_launch_core1(core1_entry);
 
     // Initialize PIO program to poll controller continuously
     PIO pio = pio0;
@@ -81,7 +147,8 @@ int main(void)
     {
         // Print controller status 60 times per second
         sleep_us(16000);
-        printf("Joypad: A=%d B=%d X=%d Y=%d / 0x%04x\n", get_button(BTN_A), get_button(BTN_B), get_button(BTN_X), get_button(BTN_Y), buttons);
+        printf("Joypad(SNES): A=%d B=%d X=%d Y=%d / 0x%04x\n", get_button(BTN_A), get_button(BTN_B), get_button(BTN_X), get_button(BTN_Y), buttons);
+        printf("Joypad(N64): A=%d B=%d C-Down=%d C-Right=%d / 0x%08x\n", n64_report.a, n64_report.b, n64_report.c_down, n64_report.c_right, n64_report);
     }
 
     return 0;

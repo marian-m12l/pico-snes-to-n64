@@ -1,3 +1,5 @@
+# TODO Usage + N64 wiring
+
 This program continuously polls a SNES controller (every ~210 us), and prints its status about 60 times per seconds.
 
 It uses PIO and DMA so the CPU is free to work on other tasks, and can directly read the controller's current status in RAM.

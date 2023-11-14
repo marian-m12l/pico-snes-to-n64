@@ -46,7 +46,7 @@ void snes_program_init(PIO pio, uint sm, uint offset, uint pin) {
     sm_config_set_in_shift(&c, false, true, 16);
 
     // Set state-machine clock to 3us per cycle --> 333333 Hz
-    sm_config_set_clkdiv(&c, 375.000375);
+    sm_config_set_clkdiv(&c, 390.00039);
     
     pio_sm_init(pio, sm, offset, &c);
 }
